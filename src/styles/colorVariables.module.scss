@@ -1,0 +1,53 @@
+// Paleta monocromática minimalista — estilo awwwards
+// Sin azules. Blanco, negro y grises como base.
+
+$white: #ffffff;
+$black: #000000;
+
+$gray-50: #fafafa;
+$gray-100: #f4f4f5;
+$gray-200: #e4e4e7;
+$gray-300: #d4d4d8;
+$gray-400: #a1a1aa;
+$gray-500: #71717a;
+$gray-600: #52525b;
+$gray-700: #3f3f46;
+$gray-800: #27272a;
+$gray-900: #18181b;
+
+// Colores de marca (monocromáticos)
+$primary: $black;
+$primary-dark: $gray-900;
+$primary-light: $gray-100;
+
+$secondary: $gray-500;
+$secondary-light: $gray-50;
+
+// Texto
+$text-primary: $gray-900;
+$text-secondary: $gray-500;
+$text-muted: $gray-400;
+
+// Superficies
+$bg-body: $gray-50;
+$bg-surface: $white;
+$bg-surface-secondary: $gray-100;
+
+// Bordes
+$border-color: $gray-200;
+
+// Colores de acento funcionales (solo para estados, no para branding)
+$accent-green: #10b981;
+$accent-amber: #f59e0b;
+$accent-red: #ef4444;
+$accent-blue: #3b82f6; // Solo para información técnica, no branding
+
+// Alert backgrounds
+$alert-warning: $accent-amber;
+$alert-info: $accent-blue;
+$alert-success: $accent-green;
+$alert-error: $accent-red;
+$alert-warning-bg: rgba($accent-amber, 0.08);
+$alert-info-bg: rgba($accent-blue, 0.08);
+$alert-success-bg: rgba($accent-green, 0.08);
+$alert-error-bg: rgba($accent-red, 0.08);
