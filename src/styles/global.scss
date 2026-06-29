@@ -48,6 +48,16 @@ a {
   }
 }
 
+.p-inputtext {
+  padding-block: 0.625rem;
+  padding-inline: 0.875rem;
+}
+
+.p-inputtextarea {
+  padding-block: 0.625rem;
+  padding-inline: 0.875rem;
+}
+
 // Utilidades tipográficas awwwards-style
 .text-display {
   font-size: clamp(2rem, 5vw, 4rem);

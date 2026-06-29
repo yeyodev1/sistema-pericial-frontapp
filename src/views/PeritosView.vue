@@ -17,6 +17,7 @@ import { useConfirm } from '@/composables/useConfirm'
 
 const peritos = ref<Perito[]>([])
 const loading = ref(false)
+const loadError = ref('')
 const dialogVisible = ref(false)
 const isEditing = ref(false)
 const errorMessage = ref('')
@@ -28,9 +29,9 @@ const filteredPeritos = computed(() => {
   if (!q) return peritos.value
   return peritos.value.filter(
     (p) =>
-      p.nombres.toLowerCase().includes(q) ||
-      p.apellidos.toLowerCase().includes(q) ||
-      p.ruc.toLowerCase().includes(q) ||
+      (p.nombres || '').toLowerCase().includes(q) ||
+      (p.apellidos || '').toLowerCase().includes(q) ||
+      (p.ruc || '').toLowerCase().includes(q) ||
       (p.email && p.email.toLowerCase().includes(q))
   )
 })
@@ -62,10 +63,17 @@ function removeCuenta(index: number) {
 
 async function loadPeritos() {
   loading.value = true
+  loadError.value = ''
   try {
     peritos.value = await peritoService.findAll()
-  } catch {
+  } catch (err: unknown) {
     peritos.value = []
+    const apiErr = err as { status?: number; message?: string }
+    if (apiErr.status === 401) {
+      loadError.value = 'Sesión expirada. Por favor inicia sesión nuevamente.'
+    } else {
+      loadError.value = apiErr.message || 'Error al cargar peritos. Verifica la conexión.'
+    }
   } finally {
     loading.value = false
   }
@@ -223,6 +231,7 @@ onMounted(loadPeritos)
       </div>
     </div>
 
+    <Message v-if="loadError" severity="error" closable @close="loadError = ''">{{ loadError }}</Message>
     <Message v-if="successMessage" severity="success" closable>{{ successMessage }}</Message>
 
     <div v-if="!hasPeritos && !loading" class="empty-state">
@@ -486,7 +495,7 @@ onMounted(loadPeritos)
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  gap: 1.25rem;
 
   .field {
     display: flex;

@@ -13,6 +13,7 @@ const open = ref(false)
 const selectedYear = ref(new Date().getFullYear())
 const selectedMonth = ref(new Date().getMonth())
 const pickerRef = ref<HTMLElement | null>(null)
+const dropdownRef = ref<HTMLElement | null>(null)
 const dropdownStyle = ref({})
 
 const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -141,7 +142,10 @@ function positionDropdown() {
 }
 
 function onClickOutside(e: MouseEvent) {
-  if (pickerRef.value && !pickerRef.value.contains(e.target as Node)) {
+  const target = e.target as Node
+  const isInsidePicker = pickerRef.value?.contains(target)
+  const isInsideDropdown = dropdownRef.value?.contains(target)
+  if (!isInsidePicker && !isInsideDropdown) {
     open.value = false
   }
 }
@@ -172,7 +176,7 @@ onUnmounted(() => {
 
     <Teleport to="body">
       <transition name="dropdown">
-        <div v-if="open" class="date-picker-dropdown" :style="dropdownStyle">
+        <div v-if="open" ref="dropdownRef" class="date-picker-dropdown" :style="dropdownStyle">
           <div class="date-picker-header">
             <button class="date-picker-nav" aria-label="Mes anterior" @click="prevMonth">
               <i class="fa-solid fa-chevron-left"></i>
