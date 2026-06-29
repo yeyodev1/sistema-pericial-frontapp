@@ -1,12 +1,30 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useSidebar } from '@/composables/useSidebar'
+import { useConfirm } from '@/composables/useConfirm'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const { isOpen, close } = useSidebar()
+const { confirm } = useConfirm()
+
+async function handleLogout() {
+  const ok = await confirm({
+    title: 'Cerrar sesión',
+    message: '¿Estás seguro de que deseas cerrar sesión?',
+    acceptLabel: 'Salir',
+    rejectLabel: 'Cancelar',
+    severity: 'danger',
+    icon: 'fa-solid fa-right-from-bracket',
+  })
+  if (ok) {
+    userStore.clear()
+    router.push('/login')
+  }
+}
 
 const isActive = (path: string) => route.path === path
 
@@ -92,6 +110,11 @@ watch(() => route.path, () => {
           <i class="fa-solid fa-user-gear"></i>
           <span>Mi Cuenta</span>
         </RouterLink>
+
+        <a class="nav-item nav-logout" @click.prevent="handleLogout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Cerrar sesión</span>
+        </a>
       </nav>
 
       <div class="sidebar-footer">
@@ -194,6 +217,20 @@ watch(() => route.path, () => {
     font-size: 1.1rem;
     width: 22px;
     text-align: center;
+  }
+}
+
+.nav-logout {
+  color: #ef4444 !important;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(239, 68, 68, 0.06) !important;
+    color: #dc2626 !important;
+  }
+
+  i {
+    color: inherit;
   }
 }
 

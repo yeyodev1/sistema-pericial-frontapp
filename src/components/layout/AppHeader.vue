@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import Button from 'primevue/button'
+import { useRoute } from 'vue-router'
 import Avatar from 'primevue/avatar'
 import Select from 'primevue/select'
 import { useUserStore } from '@/stores/user'
 import { usePeritoWorkspaceStore } from '@/stores/peritoWorkspace'
 import { useSidebar } from '@/composables/useSidebar'
 
-const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const peritoWorkspace = usePeritoWorkspaceStore()
@@ -35,11 +33,6 @@ watch(
     pageTitle.value = pageTitles[name as string] || 'Panel de Control'
   }
 )
-
-function logout() {
-  userStore.clear()
-  router.push('/login')
-}
 
 function optionFilter(option: { nombres: string; apellidos: string; ruc: string }, query: string) {
   if (!query) return true
@@ -141,15 +134,6 @@ onMounted(() => {
           <span class="user-name">{{ userStore.name || 'Usuario' }}</span>
           <span class="user-role">{{ userStore.role || 'Sin rol' }}</span>
         </div>
-        <Button
-          icon="fa-solid fa-arrow-right-from-bracket"
-          text
-          rounded
-          severity="secondary"
-          aria-label="Cerrar sesión"
-          class="logout-button"
-          @click="logout"
-        />
       </div>
     </div>
   </header>
@@ -450,15 +434,6 @@ onMounted(() => {
     color: $text-secondary;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-  }
-}
-
-.logout-button {
-  color: $text-muted !important;
-
-  &:hover {
-    color: $text-primary !important;
-    background-color: $bg-surface-secondary !important;
   }
 }
 
