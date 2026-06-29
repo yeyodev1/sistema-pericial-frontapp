@@ -6,8 +6,19 @@ class APIBase {
   private axiosInstance = axios.create()
 
   constructor() {
-    const raw = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8100/api'
-    const trimmed = raw.replace(/\/+$/, '')
+    const hostname = window.location.hostname
+    const envUrl = (import.meta.env.VITE_API_BASE_URL as string) || ''
+
+    let baseUrl: string
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      baseUrl = 'http://localhost:8100'
+    } else if (hostname.includes('bakano.ec')) {
+      baseUrl = 'https://testing-storybrand-backapp.bakano.ec'
+    } else {
+      baseUrl = envUrl || 'http://localhost:8100'
+    }
+
+    const trimmed = baseUrl.replace(/\/+$/, '')
     this.baseUrl = trimmed.endsWith('/api') || /\/api\//.test(trimmed)
       ? trimmed
       : `${trimmed}/api`
