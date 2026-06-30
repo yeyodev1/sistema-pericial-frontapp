@@ -10,15 +10,27 @@ export interface CuentaBancaria {
   numeroCuenta: string
 }
 
+export interface PeritoEspecialidad {
+  areaProfesion: string
+  especialidad: string
+  ciudad?: string
+  fechaSolicitud?: string
+  fechaVencimiento?: string
+  observaciones?: string
+}
+
 export interface Perito {
   _id: string
+  codigoRegistro: string
   nombres: string
   apellidos: string
   ruc: string
   direccion?: string
   telefono?: string
   email?: string
+  notificationEmails?: string[]
   cuentasBancarias: CuentaBancaria[]
+  especialidades: PeritoEspecialidad[]
   fechaVigenciaCalificacion?: string
   fechaVencimientoFirma?: string
   isActive: boolean
@@ -70,6 +82,7 @@ export interface PeritoRef {
   nombres: string
   apellidos: string
   ruc: string
+  codigoRegistro?: string
 }
 
 export interface Sorteo {
@@ -80,9 +93,74 @@ export interface Sorteo {
   tipoMateria: string
   estado: string
   fechaAsignacion: string
+  fechaDesignacion?: string
+  dependencia?: string
+  ciudad?: string
   juzgado: string
   juez: string
   peritoId?: string | PeritoRef | null
+  proceso?: string
+  tipoDesignacion?: string
+  accionInfraccion?: string
+  fechas?: {
+    fechaNotificacion?: string
+    fechaVencimiento?: string
+    fechaPosesion?: string
+    fechaRevision?: string
+    fechaEntrega?: string
+  }
+  especialidad?: {
+    profesion?: string
+    especialidad?: string
+  }
+  informacionDemandado?: {
+    tipoIdentificacion?: string
+    identificacion?: string
+    opAnteriorTarjeta?: string
+    opActualTarjeta?: string
+    observacion?: string
+  }
+  prefactura?: {
+    clienteId?: string
+    clienteNombre?: string
+    clienteRuc?: string
+    correo?: string
+    item?: string
+    valorBaseImponible?: number
+    iva?: number
+    total?: number
+    retencionIva?: number
+    retencionFuente?: number
+    facturaNo?: string
+    fechaEmisionFactura?: string
+    retencionNo?: string
+    serie?: string
+  }
+  cobranza?: {
+    totalCobranza?: number
+    estadoCobranza?: string
+    movilidad?: number
+    adicional?: number
+    medioPago?: string
+    cuentaBancaria?: string
+    fechaLiquidacion?: string
+    fechaCancelacion?: string
+    observacion?: string
+  }
+  contacto?: {
+    estudioJuridico?: string
+    cliente?: string
+    nombre?: string
+    direccion?: string
+    telefono?: string
+    correo?: string
+    observacion?: string
+  }
+  impugnacion?: {
+    estado?: string
+    fecha?: string
+    observacion?: string
+  }
   observaciones: string
   activo?: boolean
 }

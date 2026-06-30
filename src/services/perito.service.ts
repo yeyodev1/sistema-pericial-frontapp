@@ -2,13 +2,23 @@ import APIBase from './httpBase'
 import type { Perito } from '@/types'
 
 export interface CreatePeritoPayload {
+  codigoRegistro: string
   nombres: string
   apellidos: string
   ruc: string
   direccion?: string
   telefono?: string
   email?: string
+  notificationEmails?: string[]
   cuentasBancarias?: { banco: string; tipoCuenta: 'AHORROS' | 'CORRIENTE'; numeroCuenta: string }[]
+  especialidades?: {
+    areaProfesion: string
+    especialidad: string
+    ciudad?: string
+    fechaSolicitud?: string
+    fechaVencimiento?: string
+    observaciones?: string
+  }[]
   fechaVigenciaCalificacion?: string
   fechaVencimientoFirma?: string
   password?: string

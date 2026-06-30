@@ -43,6 +43,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { roles: ['ADMIN', 'OPERATOR'] },
       },
       {
+        path: 'cxc',
+        name: 'CxC',
+        component: () => import('@/views/CuentasCobrarView.vue'),
+        meta: { roles: ['ADMIN', 'OPERATOR', 'COLLECTOR'] },
+      },
+      {
         path: 'facturacion',
         name: 'Facturacion',
         component: () => import('@/views/FacturacionView.vue'),

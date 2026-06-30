@@ -36,6 +36,7 @@ const menuItems = computed(() => {
     { label: 'Mis Sorteos', icon: 'fa-solid fa-gavel', path: '/dashboard/sorteos', roles: ['ADMIN', 'OPERATOR', 'PERITO'] },
     { label: 'Peritos', icon: 'fa-solid fa-user-tie', path: '/dashboard/peritos', roles: ['ADMIN', 'OPERATOR'] },
     { label: 'Catálogos', icon: 'fa-solid fa-book', path: '/dashboard/catalogos', roles: ['ADMIN', 'OPERATOR'] },
+    { label: 'Cuentas x Cobrar', icon: 'fa-solid fa-wallet', path: '/dashboard/cxc', roles: ['ADMIN', 'OPERATOR', 'COLLECTOR'] },
     { label: 'Escritos', icon: 'fa-solid fa-file-lines', path: '/dashboard/escritos', roles: ['ADMIN', 'OPERATOR', 'PERITO'] },
     { label: 'Facturación', icon: 'fa-solid fa-file-invoice-dollar', path: '/dashboard/facturacion', roles: ['ADMIN', 'OPERATOR', 'PERITO'] },
     { label: 'Agenda de Campo', icon: 'fa-solid fa-map-location-dot', path: '/dashboard/agenda-campo', roles: ['ADMIN', 'OPERATOR', 'COLLECTOR', 'PERITO'] },
@@ -48,7 +49,7 @@ const menuItems = computed(() => {
 
   if (role === 'PERITO') {
     return items.filter((item) =>
-      ['Inicio', 'Mis Sorteos', 'Escritos', 'Facturación', 'Agenda de Campo'].includes(item.label)
+      ['Inicio', 'Mis Sorteos', 'Escritos', 'Facturación', 'Agenda de Campo', 'Cuentas x Cobrar'].includes(item.label)
     )
   }
 

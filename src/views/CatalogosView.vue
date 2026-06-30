@@ -42,12 +42,6 @@ const zonaOptions = [
   { label: 'Otro', value: 'OTRO' },
 ]
 
-const tipoOptions = [
-  { label: 'Banco', value: 'BANCO' },
-  { label: 'Empresa', value: 'EMPRESA' },
-  { label: 'Particular', value: 'PARTICULAR' },
-]
-
 async function loadData() {
   loading.value = true
   try {
@@ -97,13 +91,6 @@ function openEditUnidad(item: UnidadJudicial) {
   isEditing.value = true
   editingId.value = item._id
   unidadForm.value = { nombre: item.nombre, juzgadoId: item.juzgadoId || '', direccion: item.direccion || '', ciudad: item.ciudad || '', zona: item.zona || 'OTRO' }
-  dialogVisible.value = true
-}
-
-function openEditCliente(item: Cliente) {
-  isEditing.value = true
-  editingId.value = item._id
-  clienteForm.value = { nombre: item.nombre, ruc: item.ruc || '', direccion: item.direccion || '', tipo: item.tipo || 'EMPRESA' }
   dialogVisible.value = true
 }
 
@@ -163,7 +150,6 @@ onMounted(loadData)
           <Tab value="jueces">Jueces</Tab>
           <Tab value="juzgados">Juzgados</Tab>
           <Tab value="unidades-judiciales">Unidades judiciales</Tab>
-          <Tab value="clientes">Clientes</Tab>
         </TabList>
 
         <TabPanels>
@@ -216,21 +202,6 @@ onMounted(loadData)
             </DataTable>
           </TabPanel>
 
-          <TabPanel value="clientes">
-            <DataTable :value="clientes" :loading="loading" paginator :rows="10" striped-rows>
-              <Column field="nombre" header="Nombre" sortable />
-              <Column field="ruc" header="RUC" />
-              <Column field="tipo" header="Tipo" />
-              <Column header="Acciones">
-                <template #body="{ data }">
-                  <div class="actions">
-                    <Button icon="fa-solid fa-pen" text rounded @click="openEditCliente(data)" />
-                    <Button icon="fa-solid fa-trash" text rounded severity="danger" @click="removeItem(data._id)" />
-                  </div>
-                </template>
-              </Column>
-            </DataTable>
-          </TabPanel>
         </TabPanels>
       </Tabs>
     </div>
@@ -277,12 +248,6 @@ onMounted(loadData)
           <div class="field full"><label>Dirección</label><InputText v-model="unidadForm.direccion" fluid /></div>
         </template>
 
-        <template v-if="activeTab === 'clientes'">
-          <div class="field full"><label>Nombre</label><InputText v-model="clienteForm.nombre" fluid /></div>
-          <div class="field"><label>RUC</label><InputText v-model="clienteForm.ruc" fluid /></div>
-          <div class="field"><label>Tipo</label><Dropdown v-model="clienteForm.tipo" :options="tipoOptions" option-label="label" option-value="value" fluid /></div>
-          <div class="field full"><label>Dirección</label><InputText v-model="clienteForm.direccion" fluid /></div>
-        </template>
       </div>
 
       <template #footer>

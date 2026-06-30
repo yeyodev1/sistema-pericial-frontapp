@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Avatar from 'primevue/avatar'
 import Select from 'primevue/select'
+import Button from 'primevue/button'
+import Tag from 'primevue/tag'
 import { useUserStore } from '@/stores/user'
 import { usePeritoWorkspaceStore } from '@/stores/peritoWorkspace'
 import { useSidebar } from '@/composables/useSidebar'
+import { peritoService } from '@/services/perito.service'
+import { getPeritoAlertDetails, getPeritoAlertSeverity } from '@/utils/peritoAlerts'
 
 const route = useRoute()
 const userStore = useUserStore()
 const peritoWorkspace = usePeritoWorkspaceStore()
 const { toggle: toggleSidebar } = useSidebar()
+const notificationsVisible = ref(false)
+const alerts = ref<Awaited<ReturnType<typeof peritoService.getAlerts>>>([])
+const loadingAlerts = ref(false)
 
 peritoWorkspace.hydrate()
 
@@ -19,6 +26,7 @@ const pageTitles: Record<string, string> = {
   Sorteos: 'Sorteos',
   Peritos: 'Peritos',
   Catalogos: 'Catálogos',
+  CxC: 'Cuentas por Cobrar',
   Facturacion: 'Facturación Electrónica',
   AgendaCampo: 'Agenda de Campo',
   Liquidacion: 'Liquidación',
@@ -44,11 +52,46 @@ function optionFilter(option: { nombres: string; apellidos: string; ruc: string 
   )
 }
 
-import { onMounted } from 'vue'
+const alertCount = computed(() => alerts.value.length)
+
+function notificationTitle(perito: (typeof alerts.value)[number]) {
+  return `${perito.codigoRegistro} - ${perito.nombres} ${perito.apellidos}`
+}
+
+function notificationDetails(perito: (typeof alerts.value)[number]) {
+  return getPeritoAlertDetails(perito).slice(0, 2)
+}
+
+async function loadNotifications() {
+  loadingAlerts.value = true
+  try {
+    alerts.value = await peritoService.getAlerts()
+  } catch {
+    alerts.value = []
+  } finally {
+    loadingAlerts.value = false
+  }
+}
+
+function toggleNotifications() {
+  notificationsVisible.value = !notificationsVisible.value
+  if (notificationsVisible.value && alerts.value.length === 0) {
+    loadNotifications()
+  }
+}
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   if (peritoWorkspace.peritos.length === 0) {
     peritoWorkspace.loadPeritos()
   }
+  loadNotifications()
+  pollTimer = setInterval(loadNotifications, 5 * 60 * 1000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
 })
 </script>
 
@@ -62,6 +105,49 @@ onMounted(() => {
     </div>
 
     <div class="header-right">
+      <div class="notifications-wrap">
+        <Button
+          type="button"
+          icon="fa-solid fa-bell"
+          severity="secondary"
+          text
+          rounded
+          class="notifications-button"
+          @click="toggleNotifications"
+        >
+          <span v-if="alertCount > 0" class="notification-badge">{{ alertCount }}</span>
+        </Button>
+
+        <transition name="fade">
+          <div v-if="notificationsVisible" class="notifications-panel">
+            <div class="notifications-panel-header">
+              <div>
+                <strong>Notificaciones</strong>
+                <span>{{ alertCount }} alertas activas</span>
+              </div>
+              <Button icon="fa-solid fa-rotate" text rounded size="small" :loading="loadingAlerts" @click="loadNotifications" />
+            </div>
+
+            <div v-if="loadingAlerts" class="notifications-empty">Cargando alertas...</div>
+            <div v-else-if="alerts.length === 0" class="notifications-empty">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>No hay alertas pendientes</span>
+            </div>
+            <div v-else class="notifications-list">
+              <div v-for="alert in alerts" :key="alert._id" class="notification-item">
+                <div class="notification-item-top">
+                  <span class="notification-name">{{ notificationTitle(alert) }}</span>
+                  <Tag :severity="getPeritoAlertSeverity(alert)" :value="getPeritoAlertSeverity(alert) === 'danger' ? 'Vencido' : 'Por vencer'" />
+                </div>
+                <div class="notification-details">
+                  <span v-for="detail in notificationDetails(alert)" :key="detail">{{ detail }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+
       <div v-if="userStore.role !== 'PERITO'" class="perito-selector">
         <div class="perito-selector-inner">
           <Select
@@ -85,7 +171,7 @@ onMounted(() => {
                   class="perito-avatar"
                 />
                 <div class="selected-info">
-                  <span class="selected-name">{{ slotProps.value.nombres }} {{ slotProps.value.apellidos }}</span>
+                  <span class="selected-name">{{ slotProps.value.codigoRegistro ? `${slotProps.value.codigoRegistro} - ` : '' }}{{ slotProps.value.nombres }} {{ slotProps.value.apellidos }}</span>
                   <span class="selected-ruc">{{ slotProps.value.ruc }}</span>
                 </div>
               </div>
@@ -103,7 +189,7 @@ onMounted(() => {
                   class="option-avatar"
                 />
                 <div class="option-info">
-                  <span class="option-name">{{ slotProps.option.nombres }} {{ slotProps.option.apellidos }}</span>
+                  <span class="option-name">{{ slotProps.option.codigoRegistro ? `${slotProps.option.codigoRegistro} - ` : '' }}{{ slotProps.option.nombres }} {{ slotProps.option.apellidos }}</span>
                   <span class="option-ruc">{{ slotProps.option.ruc }}</span>
                 </div>
               </div>
@@ -194,6 +280,122 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
+  position: relative;
+}
+
+.notifications-wrap {
+  position: relative;
+}
+
+.notifications-button {
+  position: relative;
+  width: 42px;
+  height: 42px;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: $primary;
+  color: $white;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  padding: 0 5px;
+}
+
+.notifications-panel {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  width: min(420px, calc(100vw - 2rem));
+  background: $bg-surface;
+  border: 1px solid $border-color;
+  border-radius: 1rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+  z-index: 120;
+  overflow: hidden;
+}
+
+.notifications-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1rem 0.75rem 1rem;
+  border-bottom: 1px solid $border-color;
+
+  strong {
+    display: block;
+    color: $text-primary;
+    font-size: 0.95rem;
+  }
+
+  span {
+    color: $text-secondary;
+    font-size: 0.75rem;
+  }
+}
+
+.notifications-list {
+  max-height: 360px;
+  overflow: auto;
+  padding: 0.5rem;
+}
+
+.notification-item {
+  padding: 0.85rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba($border-color, 0.9);
+  background: $bg-surface-secondary;
+
+  & + & {
+    margin-top: 0.5rem;
+  }
+}
+
+.notification-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.notification-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.notification-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: $text-secondary;
+  line-height: 1.45;
+}
+
+.notifications-empty {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: $text-secondary;
+  gap: 0.5rem;
+
+  i {
+    font-size: 1.4rem;
+    color: #10b981;
+  }
 }
 
 .perito-selector {
@@ -455,6 +657,10 @@ onMounted(() => {
 
   .user-info {
     display: none;
+  }
+
+  .notifications-panel {
+    width: min(340px, calc(100vw - 2rem));
   }
 
   .selected-option {

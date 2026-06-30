@@ -1,13 +1,78 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
+import { peritoService } from '@/services/perito.service'
+import { buildPeritoAlertSignature, getPeritoAlertDetails, getPeritoAlertSeverity } from '@/utils/peritoAlerts'
 
 const router = useRouter()
 const userStore = useUserStore()
 const toast = useToast()
+const alertTimer = ref<ReturnType<typeof setInterval> | null>(null)
+
+function loadSeenAlertSignatures(): Set<string> {
+  try {
+    const stored = localStorage.getItem('perito_alert_signatures_seen')
+    return new Set(stored ? (JSON.parse(stored) as string[]) : [])
+  } catch {
+    return new Set<string>()
+  }
+}
+
+const seenAlertSignatures = loadSeenAlertSignatures()
+
+function persistSeenAlertSignatures() {
+  try {
+    localStorage.setItem('perito_alert_signatures_seen', JSON.stringify([...seenAlertSignatures]))
+  } catch {
+    // ignore storage failures
+  }
+}
+
+async function pollPeritoAlerts() {
+  if (!userStore.isAuthenticated) return
+
+  try {
+    const alerts = await peritoService.getAlerts()
+    for (const perito of alerts) {
+      const details = getPeritoAlertDetails(perito)
+      if (details.length === 0) continue
+
+      const signature = buildPeritoAlertSignature(perito)
+      if (seenAlertSignatures.has(signature)) continue
+
+      seenAlertSignatures.add(signature)
+      persistSeenAlertSignatures()
+
+      const summary = `${perito.codigoRegistro} - ${perito.nombres} ${perito.apellidos}`
+      const detail = details.length > 2 ? `${details.slice(0, 2).join(' · ')} · +${details.length - 2} más` : details.join(' · ')
+
+      toast.add({
+        severity: getPeritoAlertSeverity(perito),
+        summary: 'Alerta de vigencia',
+        detail: `${summary}: ${detail}`,
+        life: 9000,
+      })
+    }
+  } catch {
+    // silent polling failure
+  }
+}
+
+function startAlertPolling() {
+  stopAlertPolling()
+  pollPeritoAlerts()
+  alertTimer.value = setInterval(pollPeritoAlerts, 5 * 60 * 1000)
+}
+
+function stopAlertPolling() {
+  if (alertTimer.value) {
+    clearInterval(alertTimer.value)
+    alertTimer.value = null
+  }
+}
 
 function onApiSuccess(e: Event) {
   const { message } = (e as CustomEvent).detail
@@ -31,10 +96,23 @@ onMounted(() => {
   window.addEventListener('auth:token-expired', onTokenExpired)
 })
 
+watch(
+  () => [userStore._initialized, userStore.isAuthenticated],
+  ([initialized, authenticated]) => {
+    if (initialized && authenticated) {
+      startAlertPolling()
+    } else {
+      stopAlertPolling()
+    }
+  },
+  { immediate: true }
+)
+
 onUnmounted(() => {
   window.removeEventListener('api:success', onApiSuccess)
   window.removeEventListener('api:error', onApiError)
   window.removeEventListener('auth:token-expired', onTokenExpired)
+  stopAlertPolling()
 })
 </script>
 

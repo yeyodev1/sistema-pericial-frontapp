@@ -9,9 +9,10 @@ import InputSwitch from 'primevue/inputswitch'
 import Select from 'primevue/select'
 import Message from 'primevue/message'
 import Tag from 'primevue/tag'
+import Textarea from 'primevue/textarea'
 import DatePicker from '@/components/DatePicker.vue'
 
-import type { Perito } from '@/types'
+import type { Perito, PeritoEspecialidad } from '@/types'
 import { peritoService, type CreatePeritoPayload } from '@/services/perito.service'
 import { useConfirm } from '@/composables/useConfirm'
 
@@ -23,6 +24,17 @@ const isEditing = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const searchQuery = ref('')
+
+function emptyEspecialidad(): PeritoEspecialidad {
+  return {
+    areaProfesion: '',
+    especialidad: '',
+    ciudad: '',
+    fechaSolicitud: '',
+    fechaVencimiento: '',
+    observaciones: '',
+  }
+}
 
 const filteredPeritos = computed(() => {
   const q = searchQuery.value.toLowerCase()
@@ -37,13 +49,16 @@ const filteredPeritos = computed(() => {
 })
 
 const form = ref<CreatePeritoPayload & { _id?: string }>({
+  codigoRegistro: '',
   nombres: '',
   apellidos: '',
   ruc: '',
   direccion: '',
   telefono: '',
   email: '',
+  notificationEmails: [],
   cuentasBancarias: [],
+  especialidades: [emptyEspecialidad()],
   fechaVigenciaCalificacion: '',
   fechaVencimientoFirma: '',
   password: '',
@@ -53,12 +68,61 @@ const form = ref<CreatePeritoPayload & { _id?: string }>({
 const hasPeritos = computed(() => peritos.value.length > 0)
 const passwordAuto = computed(() => !form.value.password)
 
+const notificationEmailsText = computed({
+  get: () => (form.value.notificationEmails || []).join('\n'),
+  set: (value: string) => {
+    form.value.notificationEmails = value
+      .split(/[\n,;]/)
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)
+  },
+})
+
 function addCuenta() {
   form.value.cuentasBancarias!.push({ banco: '', tipoCuenta: 'AHORROS', numeroCuenta: '' })
 }
 
 function removeCuenta(index: number) {
   form.value.cuentasBancarias!.splice(index, 1)
+}
+
+function addEspecialidad() {
+  form.value.especialidades!.push(emptyEspecialidad())
+}
+
+function removeEspecialidad(index: number) {
+  form.value.especialidades!.splice(index, 1)
+  if (form.value.especialidades!.length === 0) {
+    form.value.especialidades!.push(emptyEspecialidad())
+  }
+}
+
+function daysUntil(dateValue?: string): number | null {
+  if (!dateValue) return null
+  const parsed = new Date(dateValue)
+  if (Number.isNaN(parsed.getTime())) return null
+  const diff = parsed.getTime() - Date.now()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+function getPeritoRisk(perito: Perito): 'danger' | 'warn' | 'success' | 'secondary' {
+  const candidateDates = [perito.fechaVigenciaCalificacion, perito.fechaVencimientoFirma]
+  const specialtyDates = perito.especialidades?.map((item) => item.fechaVencimiento).filter(Boolean) || []
+  const allDates = [...candidateDates, ...specialtyDates]
+  const days = allDates
+    .map((value) => daysUntil(value))
+    .filter((value): value is number => value !== null)
+    .sort((a, b) => a - b)[0]
+
+  if (days === undefined) return 'secondary'
+  if (days <= 0) return 'danger'
+  if (days <= 30) return 'warn'
+  return 'success'
+}
+
+function getPeritoBadge(perito: Perito): string {
+  const qty = perito.especialidades?.length || 0
+  return qty === 1 ? '1 especialidad' : `${qty} especialidades`
 }
 
 async function loadPeritos() {
@@ -84,13 +148,16 @@ function openCreate() {
   errorMessage.value = ''
   successMessage.value = ''
   form.value = {
+    codigoRegistro: '',
     nombres: '',
     apellidos: '',
     ruc: '',
     direccion: '',
     telefono: '',
     email: '',
+    notificationEmails: [],
     cuentasBancarias: [],
+    especialidades: [emptyEspecialidad()],
     fechaVigenciaCalificacion: '',
     fechaVencimientoFirma: '',
     password: '',
@@ -106,6 +173,10 @@ function openEdit(perito: Perito) {
   form.value = {
     ...perito,
     cuentasBancarias: perito.cuentasBancarias ? JSON.parse(JSON.stringify(perito.cuentasBancarias)) : [],
+    notificationEmails: perito.notificationEmails ? [...perito.notificationEmails] : [],
+    especialidades: perito.especialidades && perito.especialidades.length > 0
+      ? JSON.parse(JSON.stringify(perito.especialidades))
+      : [emptyEspecialidad()],
     sendNotification: false,
     password: '',
   }
@@ -234,6 +305,16 @@ onMounted(loadPeritos)
     <Message v-if="loadError" severity="error" closable @close="loadError = ''">{{ loadError }}</Message>
     <Message v-if="successMessage" severity="success" closable>{{ successMessage }}</Message>
 
+    <div class="hint-card">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>
+        <strong>Especialidades y vigencias</strong>
+        <p>
+          Cada especialidad vence de forma independiente. El sistema marca lo próximo a vencer con 30 días de anticipación.
+        </p>
+      </div>
+    </div>
+
     <div v-if="!hasPeritos && !loading" class="empty-state">
       <div class="empty-icon">
         <i class="fa-solid fa-user-tie"></i>
@@ -254,11 +335,22 @@ onMounted(loadPeritos)
 
     <div v-if="hasPeritos" class="data-card">
       <DataTable :value="filteredPeritos" :loading="loading" paginator :rows="10" striped-rows>
+        <Column field="codigoRegistro" header="Código" sortable />
         <Column field="nombres" header="Nombres" sortable />
         <Column field="apellidos" header="Apellidos" sortable />
         <Column field="ruc" header="RUC" sortable />
         <Column field="email" header="Email" />
         <Column field="telefono" header="Teléfono" />
+        <Column header="Especialidades">
+          <template #body="{ data }">
+            <span>{{ getPeritoBadge(data) }}</span>
+          </template>
+        </Column>
+        <Column header="Vigencia">
+          <template #body="{ data }">
+            <Tag :severity="getPeritoRisk(data)" :value="getPeritoRisk(data) === 'danger' ? 'Vencido' : getPeritoRisk(data) === 'warn' ? 'Por vencer' : 'Vigente'" />
+          </template>
+        </Column>
         <Column header="Estado">
           <template #body="{ data }">
             <Tag v-if="data.email" severity="success" value="Notificado" />
@@ -303,11 +395,15 @@ onMounted(loadPeritos)
       v-model:visible="dialogVisible"
       :header="isEditing ? 'Editar perito' : 'Nuevo perito'"
       modal
-      :style="{ width: '38rem' }"
+      :style="{ width: '72rem' }"
     >
       <div class="form-grid">
         <Message v-if="errorMessage" severity="error" class="w-full">{{ errorMessage }}</Message>
 
+        <div class="field">
+          <label>Código de registro <span class="required">*</span></label>
+          <InputText v-model="form.codigoRegistro" placeholder="Código asignado por el consejo" fluid />
+        </div>
         <div class="field">
           <label>Nombres <span class="required">*</span></label>
           <InputText v-model="form.nombres" fluid />
@@ -324,6 +420,16 @@ onMounted(loadPeritos)
           <label>Email</label>
           <InputText v-model="form.email" type="email" fluid />
         </div>
+        <div class="field full-width">
+          <label>Correos a notificar</label>
+          <Textarea
+            v-model="notificationEmailsText"
+            rows="3"
+            placeholder="correo1@dominio.com\ncorreo2@dominio.com"
+            fluid
+          />
+          <span class="field-help">Sepáralos por coma, punto y coma o salto de línea. Aquí llegarán los avisos emergentes y de renovación.</span>
+        </div>
         <div class="field">
           <label>Teléfono</label>
           <InputText v-model="form.telefono" fluid />
@@ -332,22 +438,63 @@ onMounted(loadPeritos)
           <label>Dirección</label>
           <InputText v-model="form.direccion" fluid />
         </div>
-        <div class="field">
-          <label>Vigencia calificación</label>
-          <DatePicker v-model="form.fechaVigenciaCalificacion" />
+
+        <div class="field full-width section-divider">
+          <hr />
         </div>
-        <div class="field">
-          <label>Vencimiento firma electrónica</label>
-          <DatePicker v-model="form.fechaVencimientoFirma" />
+
+        <div class="field full-width section-card">
+          <div class="section-header">
+            <div>
+              <label>Especialidades</label>
+              <p class="section-help">Registra cada área con su vigencia. Aquí se disparan las alertas por vencer.</p>
+            </div>
+            <Button icon="fa-solid fa-plus" size="small" text @click="addEspecialidad" />
+          </div>
+
+          <div v-for="(especialidad, index) in form.especialidades" :key="index" class="specialidad-card">
+            <div class="specialidad-grid">
+              <div class="field">
+                <label>Área / Profesión <span class="required">*</span></label>
+                <InputText v-model="especialidad.areaProfesion" placeholder="Contabilidad y auditoría" fluid />
+              </div>
+              <div class="field">
+                <label>Especialidad <span class="required">*</span></label>
+                <InputText v-model="especialidad.especialidad" placeholder="Liquidador" fluid />
+              </div>
+              <div class="field">
+                <label>Ciudad</label>
+                <InputText v-model="especialidad.ciudad" placeholder="Guayaquil" fluid />
+              </div>
+              <div class="field">
+                <label>Fecha Solicitud</label>
+                <DatePicker v-model="especialidad.fechaSolicitud" />
+              </div>
+              <div class="field">
+                <label>Fecha Vencimiento</label>
+                <DatePicker v-model="especialidad.fechaVencimiento" />
+              </div>
+              <div class="field full-width">
+                <label>Observaciones</label>
+                <Textarea v-model="especialidad.observaciones" rows="2" fluid />
+              </div>
+            </div>
+            <Button icon="fa-solid fa-trash" text rounded severity="danger" class="remove-btn" @click="removeEspecialidad(index)" />
+          </div>
+
+          <div v-if="form.especialidades?.length === 0" class="empty-cuentas">
+            <i class="fa-solid fa-graduation-cap"></i>
+            <span>Agrega al menos una especialidad</span>
+          </div>
         </div>
 
         <div class="field full-width section-divider">
           <hr />
         </div>
 
-        <div class="field full-width">
+        <div class="field full-width section-card">
           <div class="section-header">
-            <label>Cuentas Bancarias</label>
+            <label>Cuentas bancarias</label>
             <Button icon="fa-solid fa-plus" size="small" text @click="addCuenta" />
           </div>
           <div v-for="(cuenta, index) in form.cuentasBancarias" :key="index" class="cuenta-row">
@@ -362,24 +509,33 @@ onMounted(loadPeritos)
           </div>
         </div>
 
-        <template v-if="!isEditing">
-          <div class="field full-width section-divider">
-            <hr />
-          </div>
+        <div class="field full-width section-divider">
+          <hr />
+        </div>
 
-          <div class="field full-width">
-            <div class="notify-toggle">
-              <div class="notify-info">
-                <i class="fa-solid fa-envelope"></i>
-                <div>
-                  <span class="notify-label">Notificar al perito por correo</span>
-                  <span class="notify-desc">Se enviarán las credenciales de acceso al sistema</span>
-                </div>
+        <div class="field">
+          <label>Vigencia de calificación</label>
+          <DatePicker v-model="form.fechaVigenciaCalificacion" />
+        </div>
+        <div class="field">
+          <label>Vencimiento firma electrónica</label>
+          <DatePicker v-model="form.fechaVencimientoFirma" />
+        </div>
+        <div class="field">
+          <label>Notificación por correo</label>
+          <div class="notify-toggle">
+            <div class="notify-info">
+              <i class="fa-solid fa-envelope"></i>
+              <div>
+                <span class="notify-label">Notificar al perito por correo</span>
+                <span class="notify-desc">Se enviarán las credenciales de acceso al sistema</span>
               </div>
-              <InputSwitch v-model="form.sendNotification" />
             </div>
+            <InputSwitch v-model="form.sendNotification" />
           </div>
+        </div>
 
+        <template v-if="!isEditing">
           <div v-if="form.sendNotification" class="field full-width password-field">
             <label>Contraseña <span v-if="passwordAuto" class="badge-auto">auto-generada</span></label>
             <InputText v-model="form.password" type="text" placeholder="Dejar vacío para generar automáticamente" fluid />
@@ -415,6 +571,34 @@ onMounted(loadPeritos)
     margin: 0.25rem 0 0 0;
     font-size: 0.875rem;
     color: $text-secondary;
+  }
+}
+
+.hint-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(180deg, rgba($primary, 0.08), rgba($primary, 0.03));
+  border: 1px solid rgba($primary, 0.12);
+  border-radius: 1rem;
+
+  i {
+    font-size: 1.15rem;
+    color: $primary;
+    margin-top: 0.15rem;
+  }
+
+  strong {
+    display: block;
+    color: $text-primary;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    color: $text-secondary;
+    line-height: 1.5;
   }
 }
 
@@ -513,6 +697,12 @@ onMounted(loadPeritos)
     }
   }
 
+  .field-help {
+    font-size: 0.75rem;
+    color: $text-secondary;
+    line-height: 1.4;
+  }
+
   .required {
     color: #ef4444;
   }
@@ -536,6 +726,40 @@ onMounted(loadPeritos)
     font-weight: 600;
     color: $text-primary;
   }
+}
+
+.section-card {
+  padding: 1rem;
+  border: 1px solid $border-color;
+  border-radius: 1rem;
+  background: rgba($bg-surface, 0.6);
+}
+
+.section-help {
+  margin: 0.15rem 0 0 0;
+  font-size: 0.8rem;
+  color: $text-secondary;
+}
+
+.specialidad-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid rgba($primary, 0.1);
+  border-radius: 0.875rem;
+  background: rgba($primary, 0.025);
+  margin-top: 0.75rem;
+}
+
+.specialidad-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.remove-btn {
+  align-self: start;
 }
 
 .cuenta-row {
@@ -668,6 +892,14 @@ onMounted(loadPeritos)
 
 @media (max-width: 768px) {
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .specialidad-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .specialidad-card {
     grid-template-columns: 1fr;
   }
 

@@ -4,6 +4,7 @@ import { useUserStore } from '@/stores/user'
 import { peritoService } from '@/services/perito.service'
 import { sorteoService } from '@/services/sorteo.service'
 import type { Perito } from '@/types'
+import { getPeritoAlertDetails } from '@/utils/peritoAlerts'
 
 const userStore = useUserStore()
 const alerts = ref<Perito[]>([])
@@ -110,6 +111,13 @@ const adminModules = computed(() => [
     path: '/dashboard/facturacion',
   },
   {
+    title: 'CxC',
+    count: '—',
+    label: 'Clientes',
+    icon: 'fa-solid fa-wallet',
+    path: '/dashboard/cxc',
+  },
+  {
     title: 'Agenda',
     count: '—',
     label: 'Tareas hoy',
@@ -196,12 +204,12 @@ const modules = computed(() => isPerito.value ? peritoModules.value : adminModul
         >
           <i class="fa-solid fa-triangle-exclamation"></i>
           <div class="alert-content">
-            <span class="alert-name">{{ alert.nombres }} {{ alert.apellidos }}</span>
-            <span v-if="alert.fechaVigenciaCalificacion" class="alert-detail">
-              Calificación vence: {{ new Date(alert.fechaVigenciaCalificacion).toLocaleDateString() }}
-            </span>
-            <span v-if="alert.fechaVencimientoFirma" class="alert-detail">
-              Firma electrónica vence: {{ new Date(alert.fechaVencimientoFirma).toLocaleDateString() }}
+            <span class="alert-name">{{ alert.codigoRegistro }} - {{ alert.nombres }} {{ alert.apellidos }}</span>
+            <span class="alert-detail">
+              {{ getPeritoAlertDetails(alert).slice(0, 2).join(' · ') }}
+              <template v-if="getPeritoAlertDetails(alert).length > 2">
+                · +{{ getPeritoAlertDetails(alert).length - 2 }} más
+              </template>
             </span>
           </div>
         </RouterLink>
